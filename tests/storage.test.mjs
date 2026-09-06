@@ -4,6 +4,14 @@ import {createWorker} from '../server/worker.mjs';
 import {emptyLedger,validateLedger} from '../server/validation.mjs';
 import {localDatabase} from '../scripts/sqlite-local.mjs';
 const app=createWorker({'/index.html':{body:'NEXO',type:'text/html'}});
+test('public welcome requires sign-in before any financial data access',async()=>{
+  const publicApp=createWorker({'/welcome.html':{body:'Entrar con ChatGPT',type:'text/html'},'/styles.css':{body:'body{}',type:'text/css'}});
+  const response=await publicApp.fetch(new Request('https://nexo.test/'),{});
+  assert.equal(response.status,200);assert.match(await response.text(),/Entrar con ChatGPT/);
+  for(const path of ['/api/state','/api/history','/api/history/1']){
+    assert.equal((await publicApp.fetch(new Request('https://nexo.test'+path),{})).status,401);
+  }
+});
 function fixture(){
   const state=emptyLedger();
   state.accounts.push({id:'a1',person:'juan',name:'Bancolombia',type:'Cuenta bancaria',initialBalance:1000000});

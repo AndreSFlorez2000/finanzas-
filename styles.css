@@ -38,3 +38,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 .not-ready #view,.not-ready .topbar,.not-ready #showHistory,.not-ready #exportData{visibility:hidden}
 .is-saving button,.is-saving input,.is-saving select{pointer-events:none;opacity:.65}
 .version-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #e2e8f0}
+.welcome{max-width:700px;margin:0 auto;padding:clamp(40px,12vh,110px) 24px;display:flex;flex-direction:column;align-items:flex-start;gap:20px}
+.welcome h1{font-size:clamp(34px,6vw,54px);line-height:1.12;letter-spacing:-1.6px;margin:0}
+.welcome p{font-size:18px;line-height:1.6;color:#475569;margin:0}
+.welcome .welcome-detail{font-size:13px;max-width:520px}.welcome a{text-decoration:none}

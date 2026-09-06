@@ -13,7 +13,9 @@ NEXO permite administrar las cuentas y presupuestos de Juan y Diana, sus movimie
 
 ## Acceso
 
-La publicación inicial es privada y solo permite la cuenta propietaria de Sites. Inicia sesión con la misma cuenta de ChatGPT con la que se creó el sitio. Las pestañas Juan y Diana organizan datos dentro de esa cuenta; no son usuarios independientes ni restringen la vista entre sí. No se ha habilitado acceso compartido.
+El sitio permite entrar a cualquier persona con una cuenta de ChatGPT. Cada identidad tiene su propio histórico privado: todas las consultas y escrituras se limitan al usuario autenticado. Las pestañas Juan y Diana organizan datos dentro de esa cuenta; no son usuarios independientes ni restringen la vista entre sí. No se comparten datos entre cuentas.
+
+La carpeta `docs/` contiene la entrada pública para GitHub Pages. Para habilitarla, en Settings → Pages selecciona «Deploy from a branch», rama `main` y carpeta `/docs`. El enlace de entrada abre la aplicación alojada en Sites, donde se realiza el inicio de sesión y se ejecuta la base de datos.
 
 ## Primer uso
 

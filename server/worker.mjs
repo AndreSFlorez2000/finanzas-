@@ -10,9 +10,15 @@ export function createWorker(assets) {
   return { async fetch(request,env) {
     const url=new URL(request.url);
     // Sites strips/replaces these identity headers at its authenticated gateway.
-    // The deployment remains owner-only; profile tabs are not separate logins.
+    // Each authenticated visitor owns an isolated ledger. Profile tabs are not logins.
     const owner=request.headers.get('oai-authenticated-user-id');
-    if(!owner) return json({error:'Inicia sesión para abrir tu NEXO privado.'},401);
+    if(!owner) {
+      if(['GET','HEAD'].includes(request.method) && ['/', '/index.html', '/styles.css'].includes(url.pathname)) {
+        const asset=assets[url.pathname==='/styles.css'?'/styles.css':'/welcome.html'];
+        if(asset) return new Response(request.method==='HEAD'?null:asset.body,{headers:{...headers,'Content-Type':asset.type}});
+      }
+      return json({error:'Inicia sesión con ChatGPT para consultar tus datos.'},401);
+    }
     try {
       if(url.pathname.startsWith('/api/')) {
         if(!env.DB) return json({error:'La base de datos todavía no está disponible.'},503);
