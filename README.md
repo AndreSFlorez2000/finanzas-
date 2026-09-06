@@ -1,42 +1,15 @@
-# NEXO · Finanzas en pareja
+# NEXO · GitHub Pages + Supabase
 
-[Abrir NEXO](https://nexo-finanzas-andres.chummy-mink-2332.chatgpt.site)
+Versión con registro por correo y contraseña y datos privados en Supabase. No requiere ChatGPT.
 
-NEXO permite administrar las cuentas y presupuestos de Juan y Diana, sus movimientos y las metas de ahorro conjunto. Empieza vacío, sin datos de ejemplo.
+Esta rama está preparada, pero todavía falta crear el proyecto de Supabase, ejecutar supabase/001_nexo.sql y configurar web/config.js. No publicar en main hasta verificar la conexión.
 
-## Dónde se guarda cada cosa
+Sigue supabase/SETUP.md. Solo la URL y la clave pública publishable/anon se incluyen en la aplicación; nunca subas contraseñas ni claves secretas.
 
-- GitHub conserva el código y sus cambios desde la versión original V7.
-- El sitio se aloja en Sites. La base de datos privada Cloudflare D1 conserva los movimientos, las cuentas, los presupuestos y las metas; los datos financieros nunca se suben al repositorio.
-- Cada guardado crea una versión histórica en la base de datos. «Versiones» permite descargar las últimas 100; las anteriores siguen almacenadas. «Descargar respaldo» exporta el estado actual como JSON.
-- Si otra pestaña guarda primero, se rechaza el cambio desactualizado. Pulsa «Actualizar» antes de repetirlo.
+Comandos con Node.js 24 y pnpm: pnpm install, pnpm test, pnpm build y pnpm dev. La compilación genera docs/, la carpeta que publica GitHub Pages. El SDK se incluye en la compilación sin depender de un CDN.
 
-## Acceso
+Cada usuario tiene su propio histórico, protegido con RLS. Cada guardado valida los datos y crea una copia histórica en la misma transacción. Se conservan cuentas, presupuestos, ingresos, gastos, metas, filtros y descargas JSON.
 
-El sitio permite entrar a cualquier persona con una cuenta de ChatGPT. Cada identidad tiene su propio histórico privado: todas las consultas y escrituras se limitan al usuario autenticado. Las pestañas Juan y Diana organizan datos dentro de esa cuenta; no son usuarios independientes ni restringen la vista entre sí. No se comparten datos entre cuentas.
+Juan y Diana son perfiles dentro del espacio de cada usuario; no son cuentas de acceso independientes. Se admiten pesos colombianos enteros, hasta 10.000 movimientos, 500 registros por otra categoría y 2 MB por estado.
 
-La carpeta `docs/` contiene la entrada pública para GitHub Pages. Para habilitarla, en Settings → Pages selecciona «Deploy from a branch», rama `main` y carpeta `/docs`. El enlace de entrada abre la aplicación alojada en Sites, donde se realiza el inicio de sesión y se ejecuta la base de datos.
-
-## Primer uso
-
-1. En Juan o Diana, crea una cuenta con su saldo inicial.
-2. Crea un presupuesto si lo necesitas y registra ingresos o gastos.
-3. En Nosotros, crea una meta y registra los aportes desde las cuentas.
-4. Espera el aviso «Guardado en la nube» antes de cerrar la página.
-
-## Desarrollo y publicación
-
-Requiere Node.js 24 y pnpm.
-
-```sh
-pnpm install
-pnpm test
-pnpm build
-pnpm dev
-```
-
-La vista local usa una base SQLite temporal: sus datos se descartan al detener el servidor. Los datos publicados permanecen en D1. Las migraciones están en `drizzle/`; se generan con `pnpm db:generate`. El servidor requiere el encabezado de identidad que suministra la pasarela autenticada de Sites. No debe exponerse directamente detrás de un proxy que acepte ese encabezado del visitante.
-
-Las finanzas se guardan como un documento validado, con revisión y copias históricas, en tablas D1. La actualización y la copia se confirman juntas en una transacción. El límite actual es 10.000 movimientos y 2 MB por estado. Se usan pesos colombianos enteros. Esta versión no importa ni restaura respaldos automáticamente.
-
-GitHub Pages puede mostrar una página de entrada, pero no ejecuta este servidor ni la base de datos. Un cambio en GitHub conserva una nueva versión del código; para actualizar el sitio hay que compilar y publicar una nueva versión en Sites. No hay despliegue automático configurado.
+Los archivos del servidor de Sites y las migraciones D1 se conservan como referencia. No forman parte del resultado de GitHub Pages. No se migra ni elimina la información de Sites automáticamente.

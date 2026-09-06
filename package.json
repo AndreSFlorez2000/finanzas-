@@ -1,13 +1,24 @@
 {
   "name": "nexo-finanzas",
-  "version": "8.0.0",
+  "version": "9.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mjs",
-    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build-pages.mjs",
+    "dev": "node scripts/serve-pages.mjs",
     "test": "node --test tests/*.test.mjs",
     "db:generate": "drizzle-kit generate"
   },
-  "devDependencies": {"drizzle-kit": "0.31.4", "drizzle-orm": "0.44.5"}
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "@rollup/plugin-commonjs": "28.0.6",
+    "@rollup/plugin-node-resolve": "16.0.1",
+    "drizzle-kit": "0.31.4",
+    "drizzle-orm": "0.44.5",
+    "esbuild": "0.25.12",
+    "rollup": "4.50.1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.57.4"
+  }
 }

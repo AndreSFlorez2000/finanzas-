@@ -1,21 +1,53 @@
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#111827"><title>NEXO · Finanzas en pareja</title>
-  <style>
-    *{box-sizing:border-box}body{margin:0;background:#f6f8fc;font-family:system-ui,sans-serif;color:#111827}
-    main{max-width:720px;margin:auto;padding:12vh 24px} .logo{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#111827;color:white;font-size:24px;font-weight:800}
-    small{display:block;letter-spacing:2px;margin-top:28px;color:#64748b}h1{font-size:clamp(34px,6vw,54px);line-height:1.1;letter-spacing:-1.6px}p{font-size:18px;line-height:1.6;color:#475569}
-    a{display:inline-block;background:#2563eb;color:white;border-radius:12px;padding:16px 24px;text-decoration:none;font-weight:700;margin:12px 0}a:focus-visible{outline:3px solid #111827;outline-offset:4px}.detail{font-size:13px}
-  </style>
-</head>
-<body><main>
-  <div class="logo">N</div><small>NEXO · FINANZAS EN PAREJA</small>
-  <h1>Tus cuentas claras.<br>Tus metas más cerca.</h1>
-  <p>Organiza tus ingresos, gastos, presupuestos y ahorro. Tu histórico queda guardado para continuar desde cualquier dispositivo.</p>
-  <a href="https://nexo-finanzas-andres.chummy-mink-2332.chatgpt.site/" rel="noopener">Abrir mi NEXO</a>
-  <p class="detail">Cualquier persona puede entrar con su cuenta de ChatGPT. Cada cuenta tiene sus propios datos privados.</p>
-  <p class="detail">Al continuar abrirás la aplicación en su alojamiento seguro. Esta página de GitHub no recibe tus movimientos ni tus credenciales.</p>
-</main></body>
-</html>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>NEXO · Finanzas en pareja</title><link rel="stylesheet" href="assets/styles.css"></head><body><main id="authPanel" class="welcome">
+  <div class="brand-mark">N</div><span class="eyebrow">NEXO · Finanzas en pareja</span>
+  <h1 id="authTitle">Bienvenido a NEXO</h1>
+  <p>Organiza tus cuentas, presupuestos y metas. Tus datos se guardan en tu espacio privado.</p>
+  <form id="authForm" style="width:100%;max-width:420px;display:grid;gap:16px">
+    <div id="emailField" class="field"><label for="authEmail">Correo electrónico</label><input id="authEmail" class="input" type="email" autocomplete="email" required></div>
+    <div id="passwordField" class="field"><label for="authPassword">Contraseña</label><input id="authPassword" class="input" type="password" autocomplete="current-password" required></div>
+    <button id="authSubmit" class="btn primary" type="submit">Entrar</button>
+  </form>
+  <p id="authMessage" class="welcome-detail" role="status" aria-live="polite"></p>
+  <div class="sync-actions"><button class="btn secondary" id="authSwitch" type="button">Crear una cuenta</button><button class="btn ghost" id="forgotPassword" type="button">Olvidé mi contraseña</button></div>
+  <p class="welcome-detail">No necesitas ChatGPT. Regístrate con tu correo y contraseña para continuar desde cualquier dispositivo.</p>
+</main>
+  <div class="app-shell" id="appShell" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">N</div>
+        <div>
+          <strong>NEXO</strong>
+          <span>Finanzas en pareja</span>
+        </div>
+      </div>
+
+      <nav class="profile-nav">
+        <button class="profile-tab active" data-profile="joint">Nosotros</button>
+        <button class="profile-tab" data-profile="juan">Juan</button>
+        <button class="profile-tab" data-profile="diana">Diana</button>
+      </nav>
+
+      <div class="top-actions" id="topActions"></div>
+    </header>
+
+    <main class="page">
+      <div class="sync-bar"><span id="syncStatus" role="status" aria-live="polite">Cargando tus datos…</span><div class="sync-actions"><button class="btn secondary" id="refreshData">Actualizar</button><button class="btn secondary" id="showHistory">Versiones</button><button class="btn secondary" id="exportData">Descargar respaldo</button><span id="accountEmail"></span><button class="btn secondary" id="logout">Salir</button></div></div>
+      <section id="view"></section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">NEXO</span>
+          <h2 id="modalTitle">Formulario</h2>
+        </div>
+        <button class="icon-btn" id="modalClose">×</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+<script type="module" src="assets/nexo.js"></script></body></html>
