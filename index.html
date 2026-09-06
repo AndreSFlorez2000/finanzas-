@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>NEXO · Finanzas en pareja</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">N</div>
+        <div>
+          <strong>NEXO</strong>
+          <span>Finanzas en pareja</span>
+        </div>
+      </div>
+
+      <nav class="profile-nav">
+        <button class="profile-tab active" data-profile="joint">Nosotros</button>
+        <button class="profile-tab" data-profile="juan">Juan</button>
+        <button class="profile-tab" data-profile="diana">Diana</button>
+      </nav>
+
+      <div class="top-actions" id="topActions"></div>
+    </header>
+
+    <main class="page">
+      <section id="view"></section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">NEXO</span>
+          <h2 id="modalTitle">Formulario</h2>
+        </div>
+        <button class="icon-btn" id="modalClose">×</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
