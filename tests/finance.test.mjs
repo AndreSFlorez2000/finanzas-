@@ -1,0 +1,25 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+test('original financial flow, edits, removal and filters remain correct',()=>{
+  let source=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+  source=source.slice(0,source.lastIndexOf('$$(".profile-tab").forEach'))+`globalThis.check={set:s=>state=s,accountBalance,goalBalance,budgetStats,filteredJoint,filteredPersonal,ui,currentMonth};})();`;
+  const sandbox={Intl,Date,Math,structuredClone};vm.runInNewContext(source,sandbox);
+  const c=sandbox.check;
+  const a={id:'a1',person:'juan',name:'Banco',initialBalance:1000000};
+  const state={accounts:[a],goals:[{id:'g1',name:'Viaje',target:1000000}],budgets:[{id:'b1',person:'juan',name:'Póker',limit:200000}],movements:[]};c.set(state);
+  const add=(id,type,amount,budgetId='',goalId='')=>state.movements.push({id,type,amount,budgetId,goalId,accountId:'a1',person:'juan',date:c.currentMonth+'-01',concept:'test',note:''});
+  add('m1','expense',200000,'b1');assert.equal(c.accountBalance(a),800000);assert.equal(c.budgetStats('b1').available,0);
+  add('m2','income',300000,'b1');assert.equal(c.accountBalance(a),1100000);assert.equal(c.budgetStats('b1').available,200000);assert.equal(c.budgetStats('b1').excess,100000);
+  add('m3','deposit',100000,'','g1');assert.equal(c.accountBalance(a),1000000);assert.equal(c.goalBalance('g1'),100000);
+  add('m4','withdrawal',40000,'','g1');assert.equal(c.accountBalance(a),1040000);assert.equal(c.goalBalance('g1'),60000);
+  assert.equal(c.filteredPersonal('juan').length,4);assert.equal(c.filteredJoint().length,2);
+  c.ui.personalFilters.juan.type='deposit';assert.equal(c.filteredPersonal('juan').length,1);
+  c.ui.personalFilters.juan.type='all';c.ui.personalFilters.juan.link='b:b1';assert.equal(c.filteredPersonal('juan').length,2);
+  c.ui.jointFilters.person='diana';assert.equal(c.filteredJoint().length,0);
+  c.ui.jointFilters.person='juan';c.ui.jointFilters.goal='g1';assert.equal(c.filteredJoint().length,2);
+  c.ui.jointFilters.from=c.currentMonth+'-02';assert.equal(c.filteredJoint().length,0);
+  state.movements[3].amount=20000;assert.equal(c.goalBalance('g1'),80000);assert.equal(c.accountBalance(a),1020000);
+  state.movements.pop();assert.equal(c.goalBalance('g1'),100000);assert.equal(c.accountBalance(a),1000000);
+});

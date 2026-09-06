@@ -7,7 +7,7 @@
   <title>NEXO · Finanzas en pareja</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="not-ready">
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">
@@ -28,6 +28,7 @@
     </header>
 
     <main class="page">
+      <div class="sync-bar"><span id="syncStatus" role="status" aria-live="polite">Cargando tus datos…</span><div class="sync-actions"><button class="btn secondary" id="refreshData">Actualizar</button><button class="btn secondary" id="showHistory">Versiones</button><button class="btn secondary" id="exportData">Descargar respaldo</button></div></div>
       <section id="view"></section>
     </main>
   </div>

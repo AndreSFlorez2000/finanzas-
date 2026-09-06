@@ -1,14 +1,13 @@
 (() => {
 "use strict";
 
-const KEY="nexo_finanzas_v7";
-const PREV_KEY="nexo_finanzas_v6";
 const money=new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0});
-const today=new Date().toISOString().slice(0,10);
+const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Bogota",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const currentMonth=today.slice(0,7);
 
 const blank={accounts:[],goals:[],budgets:[],movements:[]};
-let state=load();
+let state=structuredClone(blank);
+let committed=structuredClone(blank), revision=0, saving=false, ready=false;
 let ui={
   profile:"joint",
   jointFilters:{person:"all",type:"all",account:"all",goal:"all",from:"",to:"",search:""},
@@ -37,20 +36,55 @@ function normalize(s){
   });
   return s;
 }
-function load(){
-  try{
-    const cur=localStorage.getItem(KEY);
-    if(cur)return normalize(JSON.parse(cur));
-    const prev=localStorage.getItem(PREV_KEY);
-    if(prev){
-      const migrated=normalize(JSON.parse(prev));
-      localStorage.setItem(KEY,JSON.stringify(migrated));
-      return migrated;
-    }
-  }catch{}
-  return JSON.parse(JSON.stringify(blank));
+function status(message,error=false){
+  $("#syncStatus").textContent=message;
+  $("#syncStatus").classList.toggle("sync-error",error);
 }
-function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+async function api(path,options={}){
+  const response=await fetch(path,{...options,cache:"no-store",credentials:"same-origin"});
+  const data=await response.json();
+  if(!response.ok) throw new Error(data.error||"No se pudo conectar con la base de datos.");
+  return data;
+}
+async function loadRemote(){
+  if(saving)return;
+  ready=false;
+  document.body.classList.add("not-ready");
+  status("Cargando tus datos…");
+  try{
+    const data=await api("/api/state");
+    state=normalize(data.state);committed=structuredClone(state);revision=data.revision;
+    ready=true;document.body.classList.remove("not-ready");render();
+    status(revision?"Guardado en la nube · versión "+revision:"Base de datos lista · comienza creando una cuenta");
+  }catch(error){status(error.message,true);}
+}
+async function save(){
+  if(saving||!ready)return false;
+  saving=true;document.body.classList.add("is-saving");status("Guardando…");
+  try{
+    const data=await api("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({state,revision})});
+    committed=structuredClone(state);revision=data.revision;
+    status("Guardado en la nube · versión "+revision);return true;
+  }catch(error){
+    state=structuredClone(committed);
+    status(error.message+" Usa Actualizar antes de volver a intentar.",true);
+    toast("El cambio no se confirmó. Revisa el aviso superior.");return false;
+  }finally{saving=false;document.body.classList.remove("is-saving");}
+}
+function download(data,name){
+  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
+  const link=document.createElement("a");link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function openHistory(){
+  modal("Versiones guardadas",'<p>Cargando versiones…</p>');
+  try{
+    const data=await api("/api/history");
+    $("#modalBody").innerHTML='<p>Cada cambio conserva una copia anterior. Se muestran las últimas 100 versiones.</p>'+ (data.versions.length?data.versions.map(v=>`<div class="version-row"><span>Versión ${v.revision} · ${esc(new Date(v.saved_at).toLocaleString("es-CO",{timeZone:"America/Bogota"}))}</span><button class="btn secondary" data-version="${v.revision}">Descargar</button></div>`).join(""):'<p>Todavía no hay cambios guardados.</p>');
+    $$("[data-version]").forEach(button=>button.onclick=async()=>{
+      try{download(await api("/api/history/"+button.dataset.version),"nexo-version-"+button.dataset.version+".json");}catch(error){toast(error.message);}
+    });
+  }catch(error){$("#modalBody").textContent=error.message;}
+}
 function account(id){return state.accounts.find(a=>a.id===id)}
 function goal(id){return state.goals.find(g=>g.id===id)}
 function budget(id){return state.budgets.find(b=>b.id===id)}
@@ -181,7 +215,7 @@ function renderGoals(){
 function renderPersonal(p){
   const stats=monthlyStats(p);
   $("#view").innerHTML=`
-    <section class="hero"><div><span class="eyebrow">Perfil privado</span><h1>${personName(p)}</h1><p>Cuentas, presupuestos e histórico completo.</p></div></section>
+    <section class="hero"><div><span class="eyebrow">Perfil personal</span><h1>${personName(p)}</h1><p>Cuentas, presupuestos e histórico completo.</p></div></section>
     <section class="summary-grid">
       ${stat("Dinero disponible",fmt(personBalance(p)),`${state.accounts.filter(a=>a.person===p).length} cuentas`)}
       ${stat("Ingresos del mes",fmt(stats.income),currentMonth)}
@@ -270,7 +304,7 @@ function renderPersonalTable(p){
     return `<tr>
       <td>${esc(m.date)}</td><td><span class="pill ${m.type}">${{income:"Ingreso",expense:"Gasto",deposit:"Aporte ahorro",withdrawal:"Retiro ahorro"}[m.type]}</span></td>
       <td>${esc(title)}</td><td>${esc(link)}</td><td>${esc(account(m.accountId)?.name||"—")}</td>
-      <td class="amount ${m.type}">${m.type==="income"||m.type==="deposit"?"+":"−"} ${fmt(m.amount)}</td>
+      <td class="amount ${m.type}">${m.type==="income"||m.type==="withdrawal"?"+":"−"} ${fmt(m.amount)}</td>
       <td><div class="row-actions"><button class="icon-action edit" data-edit-m="${m.id}">Editar</button><button class="icon-action delete" data-del="${m.id}">Eliminar</button></div></td>
     </tr>`;
   }).join(""):`<tr class="empty-row"><td colspan="7">No hay movimientos con estos filtros.</td></tr>`;
@@ -291,24 +325,24 @@ function close(){$("#modalBackdrop").classList.add("hidden")}
 
 function openGoal(id=""){
   const g=goal(id)||{name:"",target:""};
-  modal(id?"Editar meta":"Nueva meta",`<form id="goalForm"><div class="form-grid"><div class="field span2"><label>Nombre</label><input class="input" id="gName" value="${esc(g.name)}" required></div><div class="field span2"><label>Objetivo</label><input class="input" id="gTarget" type="number" min="1" step="1000" value="${g.target||""}" required></div></div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
-  $("#cancel").onclick=close;$("#goalForm").onsubmit=e=>{e.preventDefault();const o={name:$("#gName").value.trim(),target:Number($("#gTarget").value)};if(id)Object.assign(g,o);else state.goals.push({id:uid("g_"),...o});save();close();render();toast("Meta guardada")}
+  modal(id?"Editar meta":"Nueva meta",`<form id="goalForm"><div class="form-grid"><div class="field span2"><label>Nombre</label><input class="input" id="gName" value="${esc(g.name)}" required></div><div class="field span2"><label>Objetivo</label><input class="input" id="gTarget" type="number" min="1" step="1" value="${g.target||""}" required></div></div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
+  $("#cancel").onclick=close;$("#goalForm").onsubmit=async e=>{e.preventDefault();const o={name:$("#gName").value.trim(),target:Number($("#gTarget").value)};if(id)Object.assign(g,o);else state.goals.push({id:uid("g_"),...o});if(!await save())return;close();render();toast("Meta guardada")}
 }
-function delGoal(id){if(state.movements.some(m=>m.goalId===id))return toast("La meta tiene movimientos");if(confirm("¿Eliminar meta?")){state.goals=state.goals.filter(g=>g.id!==id);save();render()}}
+async function delGoal(id){if(state.movements.some(m=>m.goalId===id))return toast("La meta tiene movimientos");if(confirm("¿Eliminar meta?")){state.goals=state.goals.filter(g=>g.id!==id);if(!await save())return;render()}}
 
 function openAccount(id="",p="juan"){
   const a=account(id)||{person:p,type:"Cuenta bancaria",name:"",initialBalance:0};
-  modal(id?"Editar cuenta":"Nueva cuenta",`<form id="accForm"><div class="form-grid"><div class="field"><label>Tipo</label><select class="select" id="aType">${["Cuenta bancaria","Billetera digital","Efectivo","Otra"].map(x=>`<option ${a.type===x?"selected":""}>${x}</option>`).join("")}</select></div><div class="field"><label>Nombre</label><input class="input" id="aName" value="${esc(a.name)}" required></div><div class="field span2"><label>Saldo inicial</label><input class="input" id="aInitial" type="number" step="1000" value="${a.initialBalance||0}" required></div></div><div class="note">El saldo se actualiza con ingresos, gastos y ahorro.</div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
-  $("#cancel").onclick=close;$("#accForm").onsubmit=e=>{e.preventDefault();const o={person:p,type:$("#aType").value,name:$("#aName").value.trim(),initialBalance:Number($("#aInitial").value||0)};if(id)Object.assign(a,o);else state.accounts.push({id:uid("a_"),...o});save();close();render();toast("Cuenta guardada")}
+  modal(id?"Editar cuenta":"Nueva cuenta",`<form id="accForm"><div class="form-grid"><div class="field"><label>Tipo</label><select class="select" id="aType">${["Cuenta bancaria","Billetera digital","Efectivo","Otra"].map(x=>`<option ${a.type===x?"selected":""}>${x}</option>`).join("")}</select></div><div class="field"><label>Nombre</label><input class="input" id="aName" value="${esc(a.name)}" required></div><div class="field span2"><label>Saldo inicial</label><input class="input" id="aInitial" min="0" type="number" step="1" value="${a.initialBalance||0}" required></div></div><div class="note">El saldo se actualiza con ingresos, gastos y ahorro.</div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
+  $("#cancel").onclick=close;$("#accForm").onsubmit=async e=>{e.preventDefault();const o={person:p,type:$("#aType").value,name:$("#aName").value.trim(),initialBalance:Number($("#aInitial").value||0)};if(id)Object.assign(a,o);else state.accounts.push({id:uid("a_"),...o});if(!await save())return;close();render();toast("Cuenta guardada")}
 }
-function delAccount(id){if(state.movements.some(m=>m.accountId===id))return toast("La cuenta tiene movimientos");if(confirm("¿Eliminar cuenta?")){state.accounts=state.accounts.filter(a=>a.id!==id);save();render()}}
+async function delAccount(id){if(state.movements.some(m=>m.accountId===id))return toast("La cuenta tiene movimientos");if(confirm("¿Eliminar cuenta?")){state.accounts=state.accounts.filter(a=>a.id!==id);if(!await save())return;render()}}
 
 function openBudget(id="",p="juan"){
   const b=budget(id)||{person:p,name:"",limit:""};
-  modal(id?"Editar presupuesto":"Nuevo presupuesto",`<form id="budgetForm"><div class="form-grid"><div class="field span2"><label>Nombre</label><input class="input" id="bName" value="${esc(b.name)}" placeholder="Ej. Póker" required></div><div class="field span2"><label>Tope mensual</label><input class="input" id="bLimit" type="number" min="1" step="1000" value="${b.limit||""}" required></div></div><div class="note">Los gastos consumen presupuesto. Los ingresos vinculados lo reintegran; si superan lo gastado, el excedente queda en tu cuenta.</div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
-  $("#cancel").onclick=close;$("#budgetForm").onsubmit=e=>{e.preventDefault();const o={person:p,name:$("#bName").value.trim(),limit:Number($("#bLimit").value)};if(id)Object.assign(b,o);else state.budgets.push({id:uid("b_"),...o});save();close();render();toast("Presupuesto guardado")}
+  modal(id?"Editar presupuesto":"Nuevo presupuesto",`<form id="budgetForm"><div class="form-grid"><div class="field span2"><label>Nombre</label><input class="input" id="bName" value="${esc(b.name)}" placeholder="Ej. Póker" required></div><div class="field span2"><label>Tope mensual</label><input class="input" id="bLimit" type="number" min="1" step="1" value="${b.limit||""}" required></div></div><div class="note">Los gastos consumen presupuesto. Los ingresos vinculados lo reintegran; si superan lo gastado, el excedente queda en tu cuenta.</div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
+  $("#cancel").onclick=close;$("#budgetForm").onsubmit=async e=>{e.preventDefault();const o={person:p,name:$("#bName").value.trim(),limit:Number($("#bLimit").value)};if(id)Object.assign(b,o);else state.budgets.push({id:uid("b_"),...o});if(!await save())return;close();render();toast("Presupuesto guardado")}
 }
-function delBudget(id){if(state.movements.some(m=>m.budgetId===id))return toast("El presupuesto tiene movimientos asociados");if(confirm("¿Eliminar presupuesto?")){state.budgets=state.budgets.filter(b=>b.id!==id);save();render()}}
+async function delBudget(id){if(state.movements.some(m=>m.budgetId===id))return toast("El presupuesto tiene movimientos asociados");if(confirm("¿Eliminar presupuesto?")){state.budgets=state.budgets.filter(b=>b.id!==id);if(!await save())return;render()}}
 
 function openPersonal(id="",p="juan"){
   if(!state.accounts.some(a=>a.person===p))return toast("Primero crea una cuenta");
@@ -319,7 +353,7 @@ function openPersonal(id="",p="juan"){
     <div class="field"><label>Cuenta</label><select class="select" id="pAccount">${state.accounts.filter(a=>a.person===p).map(a=>`<option value="${a.id}" ${m.accountId===a.id?"selected":""}>${esc(a.name)} · ${fmt(accountBalance(a,id))}</option>`).join("")}</select></div>
     <div class="field span2"><label>Concepto</label><input class="input" id="pConcept" value="${esc(m.concept||"")}" placeholder="Ej. Entrada torneo / premio / mercado" required></div>
     <div class="field"><label>Presupuesto asociado</label><select class="select" id="pBudget"><option value="">Sin presupuesto</option>${budgets.map(b=>`<option value="${b.id}" ${m.budgetId===b.id?"selected":""}>${esc(b.name)}</option>`).join("")}</select></div>
-    <div class="field"><label>Valor</label><input class="input" id="pAmount" type="number" min="1" step="1000" value="${m.amount||""}" required></div>
+    <div class="field"><label>Valor</label><input class="input" id="pAmount" type="number" min="1" step="1" value="${m.amount||""}" required></div>
     <div class="field"><label>Fecha</label><input class="input" id="pDate" type="date" value="${m.date||today}" required></div>
     <div class="field"><label>Nota</label><input class="input" id="pNote" value="${esc(m.note||"")}" placeholder="Opcional"></div>
   </div><div class="note" id="personalHelp"></div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
@@ -329,7 +363,7 @@ function openPersonal(id="",p="juan"){
       ?"El gasto baja la cuenta y, si eliges presupuesto, consume su disponible."
       :"El ingreso sube la cuenta. Si lo vinculas a un presupuesto, reintegra primero lo gastado; cualquier excedente queda en tu cuenta.";
   } helper();type.onchange=helper;
-  $("#cancel").onclick=close;$("#personalForm").onsubmit=e=>{e.preventDefault();const acc=account($("#pAccount").value),amount=Number($("#pAmount").value),typev=type.value;if(typev==="expense"&&accountBalance(acc,id)<amount)return toast("Saldo insuficiente");const o={person:p,type:typev,accountId:acc.id,amount,date:$("#pDate").value,concept:$("#pConcept").value.trim(),budgetId:bud.value,goalId:"",note:$("#pNote").value.trim()};if(id)Object.assign(m,o);else state.movements.push({id:uid("m_"),...o});save();close();render();toast("Movimiento guardado")}
+  $("#cancel").onclick=close;$("#personalForm").onsubmit=async e=>{e.preventDefault();const acc=account($("#pAccount").value),amount=Number($("#pAmount").value),typev=type.value;if(typev==="expense"&&accountBalance(acc,id)<amount)return toast("Saldo insuficiente");const o={person:p,type:typev,accountId:acc.id,amount,date:$("#pDate").value,concept:$("#pConcept").value.trim(),budgetId:bud.value,goalId:"",note:$("#pNote").value.trim()};if(id)Object.assign(m,o);else state.movements.push({id:uid("m_"),...o});if(!await save())return;close();render();toast("Movimiento guardado")}
 }
 
 function openSaving(id="",pref={}){
@@ -341,19 +375,25 @@ function openSaving(id="",pref={}){
     <div class="field"><label>Quién</label><select class="select" id="sPerson"><option value="juan" ${m.person==="juan"?"selected":""}>Juan</option><option value="diana" ${m.person==="diana"?"selected":""}>Diana</option></select></div>
     <div class="field"><label>Meta</label><select class="select" id="sGoal">${state.goals.map(g=>`<option value="${g.id}" ${m.goalId===g.id?"selected":""}>${esc(g.name)}</option>`).join("")}</select></div>
     <div class="field"><label>Cuenta</label><select class="select" id="sAccount"></select></div>
-    <div class="field"><label>Valor</label><input class="input" id="sAmount" type="number" min="1" step="1000" value="${m.amount||""}" required></div>
+    <div class="field"><label>Valor</label><input class="input" id="sAmount" type="number" min="1" step="1" value="${m.amount||""}" required></div>
     <div class="field"><label>Fecha</label><input class="input" id="sDate" type="date" value="${m.date||today}" required></div>
     <div class="field span2"><label>Nota</label><textarea class="textarea" id="sNote">${esc(m.note||"")}</textarea></div>
   </div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
   const per=$("#sPerson"),acc=$("#sAccount");
   function sync(){const list=state.accounts.filter(a=>a.person===per.value);acc.innerHTML=list.length?list.map(a=>`<option value="${a.id}" ${m.accountId===a.id?"selected":""}>${esc(a.name)} · ${fmt(accountBalance(a,id))}</option>`).join(""):`<option value="">Sin cuentas</option>`} sync();per.onchange=sync;
-  $("#cancel").onclick=close;$("#savingForm").onsubmit=e=>{e.preventDefault();const a=account(acc.value),g=goal($("#sGoal").value),amount=Number($("#sAmount").value),type=$("#sType").value;if(!a)return toast("Selecciona una cuenta");if(type==="deposit"&&accountBalance(a,id)<amount)return toast("Saldo insuficiente");if(type==="withdrawal"&&goalBalance(g.id,id)<amount)return toast("La meta no tiene suficiente dinero");const o={type,person:per.value,goalId:g.id,accountId:a.id,amount,date:$("#sDate").value,note:$("#sNote").value.trim(),concept:"",budgetId:""};if(id)Object.assign(m,o);else state.movements.push({id:uid("m_"),...o});save();close();render();toast("Movimiento guardado")}
+  $("#cancel").onclick=close;$("#savingForm").onsubmit=async e=>{e.preventDefault();const a=account(acc.value),g=goal($("#sGoal").value),amount=Number($("#sAmount").value),type=$("#sType").value;if(!a)return toast("Selecciona una cuenta");if(type==="deposit"&&accountBalance(a,id)<amount)return toast("Saldo insuficiente");if(type==="withdrawal"&&goalBalance(g.id,id)<amount)return toast("La meta no tiene suficiente dinero");const o={type,person:per.value,goalId:g.id,accountId:a.id,amount,date:$("#sDate").value,note:$("#sNote").value.trim(),concept:"",budgetId:""};if(id)Object.assign(m,o);else state.movements.push({id:uid("m_"),...o});if(!await save())return;close();render();toast("Movimiento guardado")}
 }
 
-function delMovement(id){if(confirm("¿Eliminar movimiento?")){state.movements=state.movements.filter(m=>m.id!==id);save();render()}}
+async function delMovement(id){if(confirm("¿Eliminar movimiento?")){state.movements=state.movements.filter(m=>m.id!==id);if(!await save())return;render()}}
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),2200)}
 
 $$(".profile-tab").forEach(b=>b.onclick=()=>{ui.profile=b.dataset.profile;render()});
 $("#modalClose").onclick=close;$("#modalBackdrop").onclick=e=>{if(e.target.id==="modalBackdrop")close()};
-render();
+document.addEventListener("click",e=>{if(saving){e.preventDefault();e.stopImmediatePropagation();}},true);
+document.addEventListener("submit",e=>{if(saving){e.preventDefault();e.stopImmediatePropagation();}},true);
+window.addEventListener("beforeunload",e=>{if(saving){e.preventDefault();e.returnValue="";}});
+$("#refreshData").onclick=()=>{close();loadRemote();};
+$("#showHistory").onclick=openHistory;
+$("#exportData").onclick=()=>download({state:committed,revision},"nexo-respaldo-"+today+".json");
+loadRemote();
 })();

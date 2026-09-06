@@ -31,3 +31,10 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 @media(max-width:1150px){.workspace,.personal-layout{grid-template-columns:1fr}.budgets-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.filters{grid-template-columns:repeat(3,minmax(0,1fr))}.filter-search{grid-column:span 1}}
 @media(max-width:800px){.topbar{grid-template-columns:1fr auto}.profile-nav{grid-column:1/-1;grid-row:2;justify-self:center}.summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.topbar{display:flex;flex-wrap:wrap;padding:13px 14px}.brand{flex:1}.profile-nav{order:3;width:100%}.profile-tab{flex:1}.page{padding:22px 13px}.summary-grid,.budgets-grid,.accounts-grid,.form-grid,.filters{grid-template-columns:1fr}.span2{grid-column:auto}.top-actions{order:2}.filter-search{grid-column:auto}}
+
+/* Persistent storage status */
+.sync-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;font-size:13px;color:#475569}
+.sync-actions{display:flex;gap:8px;flex-wrap:wrap}.sync-error{color:#b91c1c;font-weight:600}
+.not-ready #view,.not-ready .topbar,.not-ready #showHistory,.not-ready #exportData{visibility:hidden}
+.is-saving button,.is-saving input,.is-saving select{pointer-events:none;opacity:.65}
+.version-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #e2e8f0}
