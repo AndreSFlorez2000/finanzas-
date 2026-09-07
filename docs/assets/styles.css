@@ -43,3 +43,54 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 .welcome p{font-size:18px;line-height:1.6;color:#475569;margin:0}
 .welcome .welcome-detail{font-size:13px;max-width:520px}.welcome a{text-decoration:none}
 [hidden]{display:none!important}
+
+/* Comfortable controls and a compact phone layout. */
+.btn,.profile-tab,.icon-action{min-height:44px;font-size:13px}
+.input,.select,.textarea{min-height:44px;font-size:16px}
+.field label{font-size:12px;text-transform:none;letter-spacing:0}
+.hero p,.panel-header p,.note,.empty-card{font-size:13px}
+.stat-card span,.stat-card small,.goal-target,.goal-left,.account-card small,.budget-meta{font-size:12px}
+.person-mini span,.budget-values span{font-size:11px}
+.person-mini strong,.budget-values strong{font-size:13px}
+.icon-btn{min-width:44px;min-height:44px}
+button:focus-visible,summary:focus-visible{outline:3px solid #4f6df5;outline-offset:3px}
+.cloud-menu{margin-left:auto;max-width:100%;position:relative}
+.cloud-menu summary,.filter-panel summary{cursor:pointer;font-weight:700;min-height:44px;padding:12px;font-size:13px}
+.cloud-menu[open]{flex-basis:100%;padding:8px;background:white;border:1px solid var(--line);border-radius:14px}
+.cloud-menu p{margin:4px 12px 12px;font-size:13px;line-height:1.5}
+.cloud-menu .sync-actions{padding:0 12px 12px;align-items:center}
+#accountEmail{overflow-wrap:anywhere;font-size:13px}
+.filter-panel{background:#fbfcfe;border-bottom:1px solid var(--line)}
+.filter-panel .filters{border:0}
+.toast{max-width:calc(100vw - 32px);font-size:14px;line-height:1.5;box-shadow:var(--shadow);pointer-events:none}
+.modal-open{overflow:hidden}
+@media(max-width:650px){
+  .topbar{position:relative;gap:14px;padding:16px;border-bottom:0;background:var(--bg);backdrop-filter:none}
+  .brand strong{font-size:20px}.brand span{font-size:12px}
+  .top-actions{width:100%;display:flex;flex-wrap:wrap;gap:8px}
+  .top-actions .btn{flex:1;padding:12px 8px}
+  .top-actions .primary{flex-basis:100%;order:-1;font-size:16px;background:var(--blue)}
+  .profile-nav{position:fixed;bottom:0;left:0;right:0;z-index:30;border-top:1px solid var(--line);border-radius:0;background:white;padding:8px 12px calc(8px + env(safe-area-inset-bottom));gap:8px}
+  .profile-tab{min-height:48px;font-size:14px}.profile-tab.active{background:var(--blueSoft);color:#344bc0;box-shadow:none}
+  .page{padding:4px 14px calc(100px + env(safe-area-inset-bottom))}
+  .sync-bar{gap:4px;margin-bottom:16px;font-size:12px}.sync-bar>span{flex:1;min-width:170px}
+  .hero{margin-bottom:16px}.hero h1{font-size:28px}
+  .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .stat-card{padding:13px 11px;min-width:0;box-shadow:none}.stat-card strong{font-size:clamp(17px,4.7vw,22px);overflow-wrap:anywhere}
+  .workspace,.personal-layout{gap:18px}.panel-header{padding:16px}.panel-header h2{font-size:17px}
+  .filters{grid-template-columns:repeat(2,minmax(0,1fr))}.filter-search{grid-column:1/-1}
+  .table-wrap{max-height:none;overflow:visible}table{min-width:0;display:block}thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}tbody{display:block;padding:0 12px 12px}
+  tbody tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:14px 0;border-bottom:1px solid var(--line)}
+  td{display:block;padding:0;border:0;font-size:14px;overflow-wrap:anywhere}
+  td::before{content:attr(data-label);display:block;font-size:11px;color:var(--muted);font-weight:500;margin-bottom:4px}
+  td.amount{font-size:18px}td:last-child{grid-column:1/-1}td:last-child::before{display:none}
+  .row-actions{gap:8px}.row-actions button{flex:1}.pill{font-size:12px;padding:5px 9px}
+  .empty-row{display:block}.empty-row td{padding:24px 8px}.empty-row td::before{display:none}
+  .goals-list{max-height:none}.goal-head h3,.budget-card h3,.account-card h3{font-size:16px}
+  .goal-actions,.budget-actions,.account-actions{gap:8px}.goal-actions .btn,.budget-actions .btn,.account-actions .btn{flex:1}
+  .form-grid{gap:16px}.modal-backdrop{padding:0;align-items:end}.modal{width:100%;max-height:92dvh;border-radius:22px 22px 0 0;padding:20px 18px calc(24px + env(safe-area-inset-bottom))}
+  .form-actions{position:sticky;bottom:0;background:white;padding-top:12px}.form-actions .btn{flex:1;min-height:48px;font-size:16px}
+  .toast{left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom))}.modal-open .toast{bottom:24px}
+  .welcome{padding:40px 20px;gap:20px}.welcome h1{font-size:34px}.welcome p{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){.toast{transition:none}}

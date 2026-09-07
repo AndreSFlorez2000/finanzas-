@@ -46,7 +46,7 @@ async function api(path,options={}){
   if(!response.ok) throw new Error(data.error||"No se pudo conectar con la base de datos.");
   return data;
 }
-async function loadRemote(){
+async function loadRemote(notify=false){
   if(saving)return;
   ready=false;
   document.body.classList.add("not-ready");
@@ -56,7 +56,8 @@ async function loadRemote(){
     state=normalize(data.state);committed=structuredClone(state);revision=data.revision;
     ready=true;document.body.classList.remove("not-ready");render();
     status(revision?"Guardado en la nube · versión "+revision:"Base de datos lista · comienza creando una cuenta");
-  }catch(error){status(error.message,true);}
+    if(notify)toast("Datos actualizados desde la nube");
+  }catch(error){status(error.message,true);toast("No se pudieron cargar los datos. Revisa tu conexión y pulsa Actualizar.");}
 }
 async function save(){
   if(saving||!ready)return false;
@@ -73,7 +74,7 @@ async function save(){
 }
 function download(data,name){
   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
-  const link=document.createElement("a");link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const link=document.createElement("a");link.href=url;link.download=name;link.click();toast("Descarga del respaldo iniciada");setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function openHistory(){
   modal("Versiones guardadas",'<p>Cargando versiones…</p>');
@@ -119,6 +120,8 @@ function render(){
   $$(".profile-tab").forEach(b=>b.classList.toggle("active",b.dataset.profile===ui.profile));
   renderTop();
   ui.profile==="joint"?renderJoint():renderPersonal(ui.profile);
+  $$(".filters [data-k]").forEach(el=>el.setAttribute("aria-label",({person:"Persona",type:"Tipo de movimiento",account:"Cuenta",goal:"Meta",link:"Presupuesto o meta",from:"Desde",to:"Hasta",search:"Buscar"})[el.dataset.k]));
+  $$(".filter-panel").forEach(el=>{const filters=ui.profile==="joint"?ui.jointFilters:ui.personalFilters[ui.profile];el.open=Object.values(filters).some(value=>value!==""&&value!=="all");});
 }
 
 function renderTop(){
@@ -159,7 +162,7 @@ function renderJoint(){
 }
 
 function jointFiltersHtml(){
-  return `<div class="filters">
+  return `<details class="filter-panel"><summary>Buscar y filtrar movimientos</summary><div class="filters">
     <select class="select jf" data-k="person"><option value="all">Todos</option><option value="juan">Juan</option><option value="diana">Diana</option></select>
     <select class="select jf" data-k="type"><option value="all">Aporte y retiro</option><option value="deposit">Aportes</option><option value="withdrawal">Retiros</option></select>
     <select class="select jf" data-k="account"><option value="all">Todas las cuentas</option>${state.accounts.map(a=>`<option value="${a.id}">${personName(a.person)} · ${esc(a.name)}</option>`).join("")}</select>
@@ -167,7 +170,7 @@ function jointFiltersHtml(){
     <input class="input jf" data-k="from" type="date" title="Desde">
     <input class="input jf" data-k="to" type="date" title="Hasta">
     <input class="input jf filter-search" data-k="search" placeholder="Buscar nota...">
-  </div>`;
+  </div></details>`;
 }
 function bindJointFilters(){
   $$(".jf").forEach(el=>{const k=el.dataset.k;el.value=ui.jointFilters[k]||"";el.oninput=()=>{ui.jointFilters[k]=el.value;renderJointTable()}});
@@ -194,7 +197,12 @@ function renderJointTable(){
     <td><div class="row-actions"><button class="icon-action edit" data-edit-saving="${m.id}">Editar</button><button class="icon-action delete" data-del="${m.id}">Eliminar</button></div></td>
   </tr>`).join(""):`<tr class="empty-row"><td colspan="8">No hay movimientos con estos filtros.</td></tr>`;
   $$("[data-edit-saving]").forEach(b=>b.onclick=()=>openSaving(b.dataset.editSaving));
+  labelMovementCards();
   $$("[data-del]").forEach(b=>b.onclick=()=>delMovement(b.dataset.del));
+}
+
+function labelMovementCards(){
+  $$(".table-wrap table").forEach(table=>{const labels=[...table.querySelectorAll("th")].map(th=>th.textContent);table.querySelectorAll("tbody tr:not(.empty-row)").forEach(row=>[...row.children].forEach((cell,i)=>cell.dataset.label=labels[i]||"Acciones"));});
 }
 
 function renderGoals(){
@@ -250,14 +258,14 @@ function renderPersonal(p){
 
 function personalFiltersHtml(p){
   const f=ui.personalFilters[p];
-  return `<div class="filters">
+  return `<details class="filter-panel"><summary>Buscar y filtrar movimientos</summary><div class="filters">
     <select class="select pf" data-k="type"><option value="all">Todos los tipos</option><option value="expense">Gastos</option><option value="income">Ingresos</option><option value="deposit">Aportes ahorro</option><option value="withdrawal">Retiros ahorro</option></select>
     <select class="select pf" data-k="account"><option value="all">Todas las cuentas</option>${state.accounts.filter(a=>a.person===p).map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select>
     <select class="select pf" data-k="link"><option value="all">Presupuesto / meta</option>${state.budgets.filter(b=>b.person===p).map(b=>`<option value="b:${b.id}">Presupuesto: ${esc(b.name)}</option>`).join("")}${state.goals.map(g=>`<option value="g:${g.id}">Meta: ${esc(g.name)}</option>`).join("")}</select>
     <input class="input pf" data-k="from" type="date" title="Desde">
     <input class="input pf" data-k="to" type="date" title="Hasta">
     <input class="input pf filter-search" data-k="search" placeholder="Buscar concepto o nota...">
-  </div>`;
+  </div></details>`;
 }
 function bindPersonalFilters(p){
   $$(".pf").forEach(el=>{const k=el.dataset.k;el.value=ui.personalFilters[p][k]||"";el.oninput=()=>{ui.personalFilters[p][k]=el.value;renderPersonalTable(p)}});
@@ -309,6 +317,7 @@ function renderPersonalTable(p){
     </tr>`;
   }).join(""):`<tr class="empty-row"><td colspan="7">No hay movimientos con estos filtros.</td></tr>`;
   $$("[data-edit-m]").forEach(b=>b.onclick=()=>{const m=state.movements.find(x=>x.id===b.dataset.editM);(m.type==="deposit"||m.type==="withdrawal")?openSaving(m.id):openPersonal(m.id,p)});
+  labelMovementCards();
   $$("[data-del]").forEach(b=>b.onclick=()=>delMovement(b.dataset.del));
 }
 
@@ -320,29 +329,30 @@ function renderAccounts(p){
   $$("[data-del-account]").forEach(b=>b.onclick=()=>delAccount(b.dataset.delAccount));
 }
 
-function modal(title,html){$("#modalTitle").textContent=title;$("#modalBody").innerHTML=html;$("#modalBackdrop").classList.remove("hidden")}
-function close(){$("#modalBackdrop").classList.add("hidden")}
+let modalOpener;
+function modal(title,html){modalOpener=document.activeElement;document.body.classList.add("modal-open");$("#modalTitle").textContent=title;$("#modalBody").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$$("#modalBody .field").forEach(field=>{const label=field.querySelector("label"),input=field.querySelector("input,select,textarea");if(label&&input?.id)label.htmlFor=input.id;});$("#modalClose").focus()}
+function close(){if(saving)return;$("#modalBackdrop").classList.add("hidden");document.body.classList.remove("modal-open");if(modalOpener?.isConnected)modalOpener.focus()}
 
 function openGoal(id=""){
   const g=goal(id)||{name:"",target:""};
   modal(id?"Editar meta":"Nueva meta",`<form id="goalForm"><div class="form-grid"><div class="field span2"><label>Nombre</label><input class="input" id="gName" value="${esc(g.name)}" required></div><div class="field span2"><label>Objetivo</label><input class="input" id="gTarget" type="number" min="1" step="1" value="${g.target||""}" required></div></div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
   $("#cancel").onclick=close;$("#goalForm").onsubmit=async e=>{e.preventDefault();const o={name:$("#gName").value.trim(),target:Number($("#gTarget").value)};if(id)Object.assign(g,o);else state.goals.push({id:uid("g_"),...o});if(!await save())return;close();render();toast("Meta guardada")}
 }
-async function delGoal(id){if(state.movements.some(m=>m.goalId===id))return toast("La meta tiene movimientos");if(confirm("¿Eliminar meta?")){state.goals=state.goals.filter(g=>g.id!==id);if(!await save())return;render()}}
+async function delGoal(id){if(state.movements.some(m=>m.goalId===id))return toast("La meta tiene movimientos");if(confirm("¿Eliminar meta?")){state.goals=state.goals.filter(g=>g.id!==id);if(!await save())return;render();toast("Eliminado. Cambio guardado en la nube")}}
 
 function openAccount(id="",p="juan"){
   const a=account(id)||{person:p,type:"Cuenta bancaria",name:"",initialBalance:0};
   modal(id?"Editar cuenta":"Nueva cuenta",`<form id="accForm"><div class="form-grid"><div class="field"><label>Tipo</label><select class="select" id="aType">${["Cuenta bancaria","Billetera digital","Efectivo","Otra"].map(x=>`<option ${a.type===x?"selected":""}>${x}</option>`).join("")}</select></div><div class="field"><label>Nombre</label><input class="input" id="aName" value="${esc(a.name)}" required></div><div class="field span2"><label>Saldo inicial</label><input class="input" id="aInitial" min="0" type="number" step="1" value="${a.initialBalance||0}" required></div></div><div class="note">El saldo se actualiza con ingresos, gastos y ahorro.</div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
   $("#cancel").onclick=close;$("#accForm").onsubmit=async e=>{e.preventDefault();const o={person:p,type:$("#aType").value,name:$("#aName").value.trim(),initialBalance:Number($("#aInitial").value||0)};if(id)Object.assign(a,o);else state.accounts.push({id:uid("a_"),...o});if(!await save())return;close();render();toast("Cuenta guardada")}
 }
-async function delAccount(id){if(state.movements.some(m=>m.accountId===id))return toast("La cuenta tiene movimientos");if(confirm("¿Eliminar cuenta?")){state.accounts=state.accounts.filter(a=>a.id!==id);if(!await save())return;render()}}
+async function delAccount(id){if(state.movements.some(m=>m.accountId===id))return toast("La cuenta tiene movimientos");if(confirm("¿Eliminar cuenta?")){state.accounts=state.accounts.filter(a=>a.id!==id);if(!await save())return;render();toast("Eliminado. Cambio guardado en la nube")}}
 
 function openBudget(id="",p="juan"){
   const b=budget(id)||{person:p,name:"",limit:""};
   modal(id?"Editar presupuesto":"Nuevo presupuesto",`<form id="budgetForm"><div class="form-grid"><div class="field span2"><label>Nombre</label><input class="input" id="bName" value="${esc(b.name)}" placeholder="Ej. Póker" required></div><div class="field span2"><label>Tope mensual</label><input class="input" id="bLimit" type="number" min="1" step="1" value="${b.limit||""}" required></div></div><div class="note">Los gastos consumen presupuesto. Los ingresos vinculados lo reintegran; si superan lo gastado, el excedente queda en tu cuenta.</div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
   $("#cancel").onclick=close;$("#budgetForm").onsubmit=async e=>{e.preventDefault();const o={person:p,name:$("#bName").value.trim(),limit:Number($("#bLimit").value)};if(id)Object.assign(b,o);else state.budgets.push({id:uid("b_"),...o});if(!await save())return;close();render();toast("Presupuesto guardado")}
 }
-async function delBudget(id){if(state.movements.some(m=>m.budgetId===id))return toast("El presupuesto tiene movimientos asociados");if(confirm("¿Eliminar presupuesto?")){state.budgets=state.budgets.filter(b=>b.id!==id);if(!await save())return;render()}}
+async function delBudget(id){if(state.movements.some(m=>m.budgetId===id))return toast("El presupuesto tiene movimientos asociados");if(confirm("¿Eliminar presupuesto?")){state.budgets=state.budgets.filter(b=>b.id!==id);if(!await save())return;render();toast("Eliminado. Cambio guardado en la nube")}}
 
 function openPersonal(id="",p="juan"){
   if(!state.accounts.some(a=>a.person===p))return toast("Primero crea una cuenta");
@@ -384,15 +394,16 @@ function openSaving(id="",pref={}){
   $("#cancel").onclick=close;$("#savingForm").onsubmit=async e=>{e.preventDefault();const a=account(acc.value),g=goal($("#sGoal").value),amount=Number($("#sAmount").value),type=$("#sType").value;if(!a)return toast("Selecciona una cuenta");if(type==="deposit"&&accountBalance(a,id)<amount)return toast("Saldo insuficiente");if(type==="withdrawal"&&goalBalance(g.id,id)<amount)return toast("La meta no tiene suficiente dinero");const o={type,person:per.value,goalId:g.id,accountId:a.id,amount,date:$("#sDate").value,note:$("#sNote").value.trim(),concept:"",budgetId:""};if(id)Object.assign(m,o);else state.movements.push({id:uid("m_"),...o});if(!await save())return;close();render();toast("Movimiento guardado")}
 }
 
-async function delMovement(id){if(confirm("¿Eliminar movimiento?")){state.movements=state.movements.filter(m=>m.id!==id);if(!await save())return;render()}}
-function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),2200)}
+async function delMovement(id){if(confirm("¿Eliminar movimiento?")){state.movements=state.movements.filter(m=>m.id!==id);if(!await save())return;render();toast("Eliminado. Cambio guardado en la nube")}}
+function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),5500)}
 
-$$(".profile-tab").forEach(b=>b.onclick=()=>{ui.profile=b.dataset.profile;render()});
+$$(".profile-tab").forEach(b=>b.onclick=()=>{ui.profile=b.dataset.profile;render();toast("Espacio de "+b.textContent.trim())});
+document.addEventListener("keydown",e=>{if($("#modalBackdrop").classList.contains("hidden"))return;if(e.key==="Escape"){e.preventDefault();close();}if(e.key==="Tab"){const nodes=$$(".modal button,.modal input,.modal select,.modal textarea,.modal a[href]").filter(el=>!el.disabled&&el.getClientRects().length);const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 $("#modalClose").onclick=close;$("#modalBackdrop").onclick=e=>{if(e.target.id==="modalBackdrop")close()};
 document.addEventListener("click",e=>{if(saving){e.preventDefault();e.stopImmediatePropagation();}},true);
 document.addEventListener("submit",e=>{if(saving){e.preventDefault();e.stopImmediatePropagation();}},true);
 window.addEventListener("beforeunload",e=>{if(saving){e.preventDefault();e.returnValue="";}});
-$("#refreshData").onclick=()=>{close();loadRemote();};
+$("#refreshData").onclick=()=>{close();loadRemote(true);};
 $("#showHistory").onclick=openHistory;
 $("#exportData").onclick=()=>download({state:committed,revision},"nexo-respaldo-"+today+".json");
 loadRemote();

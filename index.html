@@ -18,7 +18,7 @@
         </div>
       </div>
 
-      <nav class="profile-nav">
+      <nav class="profile-nav" aria-label="Espacio de finanzas">
         <button class="profile-tab active" data-profile="joint">Nosotros</button>
         <button class="profile-tab" data-profile="juan">Juan</button>
         <button class="profile-tab" data-profile="diana">Diana</button>
@@ -28,25 +28,25 @@
     </header>
 
     <main class="page">
-      <div class="sync-bar"><span id="syncStatus" role="status" aria-live="polite">Cargando tus datos…</span><div class="sync-actions"><button class="btn secondary" id="refreshData">Actualizar</button><button class="btn secondary" id="showHistory">Versiones</button><button class="btn secondary" id="exportData">Descargar respaldo</button><a class="btn secondary" href="/signout-with-chatgpt?return_to=%2F" target="_top">Salir</a></div></div>
+      <div class="sync-bar"><span id="syncStatus" role="status" aria-live="polite">Cargando tus datos…</span><details class="cloud-menu"><summary>Mi espacio</summary><p>Tus datos permanecen en la nube al salir. La sesión se recuerda en este dispositivo.</p><div class="sync-actions"><button class="btn secondary" id="refreshData">Actualizar</button><button class="btn secondary" id="showHistory">Versiones</button><button class="btn secondary" id="exportData">Descargar respaldo</button><a class="btn secondary" href="/signout-with-chatgpt?return_to=%2F" target="_top">Salir</a></div></details></div>
       <section id="view"></section>
     </main>
   </div>
 
   <div class="modal-backdrop hidden" id="modalBackdrop">
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-head">
         <div>
           <span class="eyebrow">NEXO</span>
           <h2 id="modalTitle">Formulario</h2>
         </div>
-        <button class="icon-btn" id="modalClose">×</button>
+        <button class="icon-btn" id="modalClose" aria-label="Cerrar formulario">×</button>
       </div>
       <div id="modalBody"></div>
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="app.js"></script>
 </body>
 </html>

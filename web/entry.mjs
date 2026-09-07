@@ -27,6 +27,7 @@ function friendly(error){
   return m||'No se pudo completar la operación.';
 }
 async function showSession(session){
+  $('sessionLoading').hidden=true;
   if(recovery){$('authPanel').hidden=false;$('appShell').hidden=true;document.body.classList.remove('not-ready');setMode('password');return;}
   if(!session){$('authPanel').hidden=false;$('appShell').hidden=true;document.body.classList.remove('not-ready');return;}
   if(currentUser&&currentUser!==session.user.id){location.reload();return;}
@@ -36,6 +37,7 @@ async function showSession(session){
 }
 setMode(recovery?'password':'login');
 if(!SUPABASE_URL||!SUPABASE_PUBLISHABLE_KEY){
+  $('sessionLoading').hidden=true;$('authPanel').hidden=false;
   notice('Estamos conectando la base de datos. El registro estará disponible al finalizar la configuración.',true);
   $('authSubmit').disabled=true;
 }else{
@@ -66,7 +68,7 @@ if(!SUPABASE_URL||!SUPABASE_PUBLISHABLE_KEY){
   };
   $('logout').onclick=async()=>{
     if(document.body.classList.contains('is-saving'))return;
-    const {error}=await client.auth.signOut();if(error)alert('No se pudo cerrar sesión. Intenta de nuevo.');
+    const {error}=await client.auth.signOut({scope:'local'});if(error)alert('No se pudo cerrar sesión. Intenta de nuevo.');
   };
 }
 $('authSwitch').onclick=()=>setMode(mode==='login'?'signup':'login');

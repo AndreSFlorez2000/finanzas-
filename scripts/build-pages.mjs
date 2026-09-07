@@ -6,7 +6,7 @@ import {resolve} from 'node:path';
 await mkdir('docs/assets',{recursive:true});
 const original=await readFile('app.js','utf8');
 const start=original.indexOf('async function api(path,options={}){');
-const end=original.indexOf('async function loadRemote()',start);
+const end=original.indexOf('async function loadRemote(',start);
 if(start<0||end<0)throw new Error('No se encontró la capa de almacenamiento.');
 await writeFile('web/finance.js',original.slice(0,start)+'async function api(path,options={}){return window.NexoStorage.request(path,options);}\n'+original.slice(end));
 const bundle=await rollup({input:resolve('web/entry.mjs'),external:id=>id==='./finance.js',plugins:[nodeResolve({browser:true,preferBuiltins:false}),commonjs()]});
@@ -22,3 +22,4 @@ await writeFile('docs/index.html',`<!doctype html><html lang="es"><head><meta ch
 await copyFile('styles.css','docs/assets/styles.css');
 await writeFile('docs/.nojekyll','');
 console.log('NEXO para GitHub Pages compilado.');
+
