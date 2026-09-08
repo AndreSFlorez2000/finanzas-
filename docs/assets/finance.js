@@ -111,10 +111,30 @@ function budgetStats(id){
 
 function stat(label,value,note){return `<article class="stat-card"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></article>`}
 
+let movementView;
+try{movementView=localStorage.getItem("nexo-movement-view");}catch{}
+if(!["cards","table"].includes(movementView))movementView=globalThis.matchMedia?.("(max-width:650px)").matches?"cards":"table";
+function viewControls(){return `<div class="view-controls" role="group" aria-label="Cómo ver los movimientos"><span>Ver como</span><button class="btn secondary" data-view="cards">Tarjetas</button><button class="btn secondary" data-view="table">Tabla</button></div><p class="table-hint">Desliza la tabla hacia los lados para ver todas las columnas.</p>`;}
+function applyMovementView(){
+  $("#view").classList.toggle("view-cards",movementView==="cards");$("#view").classList.toggle("view-table",movementView==="table");
+  $$("[data-view]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.view===movementView));b.onclick=()=>{movementView=b.dataset.view;try{localStorage.setItem("nexo-movement-view",movementView);}catch{}applyMovementView();toast(movementView==="table"?"Vista de tabla activada":"Vista de tarjetas activada");};});
+}
+function quickGuide(){
+ const joint=ui.profile==="joint",p=joint?"juan":ui.profile;
+ const missing=!state.accounts.some(a=>joint||a.person===p);
+ return `<section class="getting-started">${missing?`<div class="next-step"><div><strong>Empieza por dónde tienes tu dinero</strong><p>Agrega tu banco, billetera o efectivo y escribe cuánto tienes hoy.</p></div><button class="btn primary" id="startAccount">Agregar mi primera cuenta</button></div>`:""}<details ${missing?"open":""}><summary>¿Cómo uso NEXO? Una guía rápida</summary><ol><li><strong>Elige tu nombre abajo.</strong> Allí ves tus cuentas, lo que recibes y lo que gastas.</li><li><strong>Registra lo que pasó.</strong> «Gasté dinero» para una compra; «Recibí dinero» para un pago o sueldo.</li><li><strong>Ahorren juntos en Nosotros.</strong> Creen una meta, como un viaje, y usen «Agregar ahorro» para separar dinero de una cuenta.</li></ol><p>Ejemplo: pagaste $20.000 de mercado → elige tu nombre → Registrar gasto o ingreso → Gasté dinero → completa el valor y pulsa Guardar.</p><p>Un <strong>presupuesto</strong> es un límite de gasto mensual y es opcional. Guardar confirma el cambio en la nube; si falla, verás un aviso.</p></details></section>`;
+}
+function chooseMovement(p){
+ if(!state.accounts.some(a=>a.person===p)){openAccount("",p);toast("Primero agrega dónde tienes tu dinero. Después podrás registrar un gasto o ingreso.");return;}
+ modal("¿Qué quieres registrar?",`<div class="action-choices"><button class="choice" id="chooseExpense"><strong>− Gasté dinero</strong><span>Una compra, un recibo, transporte…</span></button><button class="choice" id="chooseIncome"><strong>+ Recibí dinero</strong><span>Tu sueldo, un pago o una devolución…</span></button></div>`);
+ $("#chooseExpense").onclick=()=>openPersonal("",p,"expense");$("#chooseIncome").onclick=()=>openPersonal("",p,"income");
+}
 function render(){
   $$(".profile-tab").forEach(b=>b.classList.toggle("active",b.dataset.profile===ui.profile));
   renderTop();
   ui.profile==="joint"?renderJoint():renderPersonal(ui.profile);
+  applyMovementView();
+  if($("#startAccount"))$("#startAccount").onclick=()=>openAccount("",ui.profile==="joint"?"juan":ui.profile);
   $$(".filters [data-k]").forEach(el=>el.setAttribute("aria-label",({person:"Persona",type:"Tipo de movimiento",account:"Cuenta",goal:"Meta",link:"Presupuesto o meta",from:"Desde",to:"Hasta",search:"Buscar"})[el.dataset.k]));
   $$(".filter-panel").forEach(el=>{const filters=ui.profile==="joint"?ui.jointFilters:ui.personalFilters[ui.profile];el.open=Object.values(filters).some(value=>value!==""&&value!=="all");});
 }
@@ -122,20 +142,21 @@ function render(){
 function renderTop(){
   const c=$("#topActions");
   if(ui.profile==="joint"){
-    c.innerHTML=`<button class="btn secondary" id="newGoalTop">+ Meta</button><button class="btn primary" id="newSavingTop">+ Aporte</button>`;
+    c.innerHTML=`<button class="btn secondary" id="newGoalTop">Crear meta</button><button class="btn primary" id="newSavingTop">Agregar ahorro</button>`;
     $("#newGoalTop").onclick=()=>openGoal();
     $("#newSavingTop").onclick=()=>openSaving();
   }else{
-    c.innerHTML=`<button class="btn secondary" id="newBudgetTop">+ Presupuesto</button><button class="btn secondary" id="newAccountTop">+ Cuenta</button><button class="btn primary" id="newPersonalTop">+ Movimiento</button>`;
+    c.innerHTML=`<button class="btn secondary" id="newBudgetTop">+ Presupuesto</button><button class="btn secondary" id="newAccountTop">+ Cuenta</button><button class="btn primary" id="newPersonalTop">Registrar gasto o ingreso</button>`;
     $("#newBudgetTop").onclick=()=>openBudget("",ui.profile);
     $("#newAccountTop").onclick=()=>openAccount("",ui.profile);
-    $("#newPersonalTop").onclick=()=>openPersonal("",ui.profile);
+    $("#newPersonalTop").onclick=()=>chooseMovement(ui.profile);
   }
 }
 
 function renderJoint(){
   $("#view").innerHTML=`
     <section class="hero"><div><span class="eyebrow">Juan + Diana</span><h1>Nuestro ahorro</h1><p>Metas conjuntas, aportes y retiros.</p></div></section>
+    ${quickGuide()}
     <section class="summary-grid">
       ${stat("Ahorro total",fmt(totalSaved()),state.goals.length?`${pct(totalSaved(),totalTarget())}% del objetivo total`:"Sin metas")}
       ${stat("Juan ha aportado",fmt(savedByPerson("juan")),"Aporte neto")}
@@ -144,7 +165,8 @@ function renderJoint(){
     </section>
     <section class="workspace">
       <article class="panel">
-        <div class="panel-header"><div><h2>Histórico de ahorro</h2><p>Aportes y retiros de ambos.</p></div></div>
+        <div class="panel-header"><div><h2>Movimientos del ahorro</h2><p>Aportes y retiros de ambos.</p></div></div>
+        ${viewControls()}
         ${jointFiltersHtml()}
         <div class="table-wrap"><table>
           <thead><tr><th>Fecha</th><th>Quién</th><th>Tipo</th><th>Meta</th><th>Cuenta</th><th>Valor</th><th>Nota</th><th></th></tr></thead>
@@ -190,7 +212,7 @@ function renderJointTable(){
     <td>${esc(goal(m.goalId)?.name||"—")}</td><td>${esc(account(m.accountId)?.name||"—")}</td>
     <td class="amount ${m.type}">${m.type==="deposit"?"+":"−"} ${fmt(m.amount)}</td><td>${esc(m.note||"")}</td>
     <td><div class="row-actions"><button class="icon-action edit" data-edit-saving="${m.id}">Editar</button><button class="icon-action delete" data-del="${m.id}">Eliminar</button></div></td>
-  </tr>`).join(""):`<tr class="empty-row"><td colspan="8">No hay movimientos con estos filtros.</td></tr>`;
+  </tr>`).join(""):`<tr class="empty-row"><td colspan="8">No hay movimientos para mostrar. Registra uno o cambia los filtros.</td></tr>`;
   $$("[data-edit-saving]").forEach(b=>b.onclick=()=>openSaving(b.dataset.editSaving));
   labelMovementCards();
   $$("[data-del]").forEach(b=>b.onclick=()=>delMovement(b.dataset.del));
@@ -219,6 +241,7 @@ function renderPersonal(p){
   const stats=monthlyStats(p);
   $("#view").innerHTML=`
     <section class="hero"><div><span class="eyebrow">Perfil personal</span><h1>${personName(p)}</h1><p>Cuentas, presupuestos e histórico completo.</p></div></section>
+    ${quickGuide()}
     <section class="summary-grid">
       ${stat("Dinero disponible",fmt(personBalance(p)),`${state.accounts.filter(a=>a.person===p).length} cuentas`)}
       ${stat("Ingresos del mes",fmt(stats.income),currentMonth)}
@@ -227,13 +250,14 @@ function renderPersonal(p){
     </section>
 
     <section class="panel" style="margin-bottom:15px">
-      <div class="panel-header"><div><h2>Presupuestos personales</h2><p>Un presupuesto puede tener gastos y reintegros/ganancias.</p></div><button class="btn secondary" id="addBudgetBtn">+ Presupuesto</button></div>
+      <div class="panel-header"><div><h2>Presupuestos personales</h2><p>Define cuánto quieres gastar al mes. Es opcional.</p></div><button class="btn secondary" id="addBudgetBtn">+ Presupuesto</button></div>
       <div class="budgets-grid" id="budgetsGrid"></div>
     </section>
 
     <section class="personal-layout">
       <article class="panel">
-        <div class="panel-header"><div><h2>Histórico completo</h2><p>Ingresos, gastos, aportes y retiros de ahorro.</p></div><button class="btn primary" id="addPersonalBtn">+ Movimiento</button></div>
+        <div class="panel-header"><div><h2>Tus movimientos</h2><p>Ingresos, gastos, aportes y retiros de ahorro.</p></div><button class="btn primary" id="addPersonalBtn">Registrar gasto o ingreso</button></div>
+        ${viewControls()}
         ${personalFiltersHtml(p)}
         <div class="table-wrap"><table>
           <thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto / Meta</th><th>Presupuesto</th><th>Cuenta</th><th>Valor</th><th></th></tr></thead>
@@ -246,7 +270,7 @@ function renderPersonal(p){
       </aside>
     </section>`;
   $("#addBudgetBtn").onclick=()=>openBudget("",p);
-  $("#addPersonalBtn").onclick=()=>openPersonal("",p);
+  $("#addPersonalBtn").onclick=()=>chooseMovement(p);
   $("#addAccountBtn").onclick=()=>openAccount("",p);
   renderBudgets(p);bindPersonalFilters(p);renderPersonalTable(p);renderAccounts(p);
 }
@@ -310,7 +334,7 @@ function renderPersonalTable(p){
       <td class="amount ${m.type}">${m.type==="income"||m.type==="withdrawal"?"+":"−"} ${fmt(m.amount)}</td>
       <td><div class="row-actions"><button class="icon-action edit" data-edit-m="${m.id}">Editar</button><button class="icon-action delete" data-del="${m.id}">Eliminar</button></div></td>
     </tr>`;
-  }).join(""):`<tr class="empty-row"><td colspan="7">No hay movimientos con estos filtros.</td></tr>`;
+  }).join(""):`<tr class="empty-row"><td colspan="7">No hay movimientos para mostrar. Registra uno o cambia los filtros.</td></tr>`;
   $$("[data-edit-m]").forEach(b=>b.onclick=()=>{const m=state.movements.find(x=>x.id===b.dataset.editM);(m.type==="deposit"||m.type==="withdrawal")?openSaving(m.id):openPersonal(m.id,p)});
   labelMovementCards();
   $$("[data-del]").forEach(b=>b.onclick=()=>delMovement(b.dataset.del));
@@ -337,7 +361,7 @@ async function delGoal(id){if(state.movements.some(m=>m.goalId===id))return toas
 
 function openAccount(id="",p="juan"){
   const a=account(id)||{person:p,type:"Cuenta bancaria",name:"",initialBalance:0};
-  modal(id?"Editar cuenta":"Nueva cuenta",`<form id="accForm"><div class="form-grid"><div class="field"><label>Tipo</label><select class="select" id="aType">${["Cuenta bancaria","Billetera digital","Efectivo","Otra"].map(x=>`<option ${a.type===x?"selected":""}>${x}</option>`).join("")}</select></div><div class="field"><label>Nombre</label><input class="input" id="aName" value="${esc(a.name)}" required></div><div class="field span2"><label>Saldo inicial</label><input class="input" id="aInitial" min="0" type="number" step="1" value="${a.initialBalance||0}" required></div></div><div class="note">El saldo se actualiza con ingresos, gastos y ahorro.</div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
+  modal(id?"Editar cuenta":"Nueva cuenta",`<form id="accForm"><div class="form-grid"><div class="field"><label>Tipo</label><select class="select" id="aType">${["Cuenta bancaria","Billetera digital","Efectivo","Otra"].map(x=>`<option ${a.type===x?"selected":""}>${x}</option>`).join("")}</select></div><div class="field"><label>Nombre</label><input class="input" id="aName" value="${esc(a.name)}" required></div><div class="field span2"><label>¿Cuánto tienes hoy? (pesos)</label><input class="input" id="aInitial" min="0" type="number" step="1" value="${a.initialBalance||0}" required></div></div><div class="note">El saldo se actualiza con ingresos, gastos y ahorro.</div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
   $("#cancel").onclick=close;$("#accForm").onsubmit=async e=>{e.preventDefault();const o={person:p,type:$("#aType").value,name:$("#aName").value.trim(),initialBalance:Number($("#aInitial").value||0)};if(id)Object.assign(a,o);else state.accounts.push({id:uid("a_"),...o});if(!await save())return;close();render();toast("Cuenta guardada")}
 }
 async function delAccount(id){if(state.movements.some(m=>m.accountId===id))return toast("La cuenta tiene movimientos");if(confirm("¿Eliminar cuenta?")){state.accounts=state.accounts.filter(a=>a.id!==id);if(!await save())return;render();toast("Eliminado. Cambio guardado en la nube")}}
@@ -349,16 +373,16 @@ function openBudget(id="",p="juan"){
 }
 async function delBudget(id){if(state.movements.some(m=>m.budgetId===id))return toast("El presupuesto tiene movimientos asociados");if(confirm("¿Eliminar presupuesto?")){state.budgets=state.budgets.filter(b=>b.id!==id);if(!await save())return;render();toast("Eliminado. Cambio guardado en la nube")}}
 
-function openPersonal(id="",p="juan"){
+function openPersonal(id="",p="juan",initialType="expense"){
   if(!state.accounts.some(a=>a.person===p))return toast("Primero crea una cuenta");
-  const m=state.movements.find(x=>x.id===id)||{person:p,type:"expense",accountId:"",amount:"",date:today,concept:"",budgetId:"",note:""};
+  const m=state.movements.find(x=>x.id===id)||{person:p,type:initialType,accountId:"",amount:"",date:today,concept:"",budgetId:"",note:""};
   const budgets=state.budgets.filter(b=>b.person===p);
-  modal(id?"Editar movimiento":"Nuevo movimiento",`<form id="personalForm"><div class="form-grid">
+  modal(id?"Editar movimiento":initialType==="income"?"Registrar dinero recibido":"Registrar un gasto",`<form id="personalForm"><div class="form-grid">
     <div class="field"><label>Tipo</label><select class="select" id="pType"><option value="expense" ${m.type==="expense"?"selected":""}>Gasto</option><option value="income" ${m.type==="income"?"selected":""}>Ingreso / reintegro</option></select></div>
     <div class="field"><label>Cuenta</label><select class="select" id="pAccount">${state.accounts.filter(a=>a.person===p).map(a=>`<option value="${a.id}" ${m.accountId===a.id?"selected":""}>${esc(a.name)} · ${fmt(accountBalance(a,id))}</option>`).join("")}</select></div>
-    <div class="field span2"><label>Concepto</label><input class="input" id="pConcept" value="${esc(m.concept||"")}" placeholder="Ej. Entrada torneo / premio / mercado" required></div>
-    <div class="field"><label>Presupuesto asociado</label><select class="select" id="pBudget"><option value="">Sin presupuesto</option>${budgets.map(b=>`<option value="${b.id}" ${m.budgetId===b.id?"selected":""}>${esc(b.name)}</option>`).join("")}</select></div>
-    <div class="field"><label>Valor</label><input class="input" id="pAmount" type="number" min="1" step="1" value="${m.amount||""}" required></div>
+    <div class="field span2"><label>¿En qué fue?</label><input class="input" id="pConcept" value="${esc(m.concept||"")}" placeholder="Ej. Mercado, sueldo o transporte" required></div>
+    <div class="field"><label>Presupuesto (opcional)</label><select class="select" id="pBudget"><option value="">Sin presupuesto</option>${budgets.map(b=>`<option value="${b.id}" ${m.budgetId===b.id?"selected":""}>${esc(b.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>¿Cuánto? (pesos)</label><input class="input" id="pAmount" type="number" min="1" step="1" value="${m.amount||""}" required></div>
     <div class="field"><label>Fecha</label><input class="input" id="pDate" type="date" value="${m.date||today}" required></div>
     <div class="field"><label>Nota</label><input class="input" id="pNote" value="${esc(m.note||"")}" placeholder="Opcional"></div>
   </div><div class="note" id="personalHelp"></div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
@@ -380,7 +404,7 @@ function openSaving(id="",pref={}){
     <div class="field"><label>Quién</label><select class="select" id="sPerson"><option value="juan" ${m.person==="juan"?"selected":""}>Juan</option><option value="diana" ${m.person==="diana"?"selected":""}>Diana</option></select></div>
     <div class="field"><label>Meta</label><select class="select" id="sGoal">${state.goals.map(g=>`<option value="${g.id}" ${m.goalId===g.id?"selected":""}>${esc(g.name)}</option>`).join("")}</select></div>
     <div class="field"><label>Cuenta</label><select class="select" id="sAccount"></select></div>
-    <div class="field"><label>Valor</label><input class="input" id="sAmount" type="number" min="1" step="1" value="${m.amount||""}" required></div>
+    <div class="field"><label>¿Cuánto? (pesos)</label><input class="input" id="sAmount" type="number" min="1" step="1" value="${m.amount||""}" required></div>
     <div class="field"><label>Fecha</label><input class="input" id="sDate" type="date" value="${m.date||today}" required></div>
     <div class="field span2"><label>Nota</label><textarea class="textarea" id="sNote">${esc(m.note||"")}</textarea></div>
   </div><div class="form-actions"><button type="button" class="btn ghost" id="cancel">Cancelar</button><button class="btn primary">Guardar</button></div></form>`);
@@ -403,3 +427,4 @@ $("#showHistory").onclick=openHistory;
 $("#exportData").onclick=()=>download({state:committed,revision},"nexo-respaldo-"+today+".json");
 loadRemote();
 })();
+
